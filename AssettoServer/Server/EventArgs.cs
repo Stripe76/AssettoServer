@@ -146,3 +146,14 @@ public class CarListResponseSendingEventArgs : EventArgs
         Packet = packet;
     }
 }
+
+public class GetPluginStatusEventArgs : EventArgs
+{
+    public EntryCar Target { get; set; }
+    public AssettoServer.Shared.Model.CarStatus? Status { get; set; }
+
+    public GetPluginStatusEventArgs( EntryCar target )
+    {
+        Target = target;
+    }
+}

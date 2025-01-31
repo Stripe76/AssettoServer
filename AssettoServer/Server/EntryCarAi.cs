@@ -21,6 +21,7 @@ public enum AiMode
 public partial class EntryCar
 {
     public bool AiControlled { get; set; }
+    public bool PluginControlled { get; set; }
     public AiMode AiMode { get; set; }
     public int TargetAiStateCount { get; private set; } = 1;
     public byte[] LastSeenAiSpawn { get; }

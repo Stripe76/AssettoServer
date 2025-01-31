@@ -26,7 +26,7 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
     public bool ForceLights { get; internal set; }
 
     public long LastActiveTime { get; internal set; }
-    public bool HasUpdateToSend { get; internal set; }
+    public bool HasUpdateToSend { get; set; }
     public int TimeOffset { get; internal set; }
     public byte SessionId { get; }
     public uint LastRemoteTimestamp { get; internal set; }
@@ -61,6 +61,11 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
     /// Fires when the state of this car is reset, usually when a new player connects.
     /// </summary>
     public event EventHandler<EntryCar, EventArgs>? ResetInvoked;
+
+    /// <summary>
+    /// Plugin Ai control
+    /// </summary>
+    public event EventHandler<EntryCar, GetPluginStatusEventArgs>? GetPluginStatus;
 
     public delegate EntryCar Factory(string model, string? skin, byte sessionId);
 
