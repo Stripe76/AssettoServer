@@ -257,6 +257,21 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
 
             status = aiState.Status;
         }
+        else if( PluginControlled )
+        {
+            GetPluginStatusEventArgs args = new GetPluginStatusEventArgs( toCar );
+
+            GetPluginStatus?.Invoke( this,args );
+
+            if( args.Status != null )
+            {
+                status = args.Status;
+            }
+            else
+            {
+                status = Status;
+            }
+        }
         else
         {
             status = Status;
