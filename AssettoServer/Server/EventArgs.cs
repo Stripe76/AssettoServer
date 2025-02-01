@@ -157,3 +157,9 @@ public class GetPluginStatusEventArgs : EventArgs
         Target = target;
     }
 }
+
+public class PluginVoteKickEventArgs( byte sessionId ) : EventArgs
+{
+    public byte SessionId { get; set; } = sessionId;
+    public bool Handled { get; set; } = false;
+}

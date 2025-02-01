@@ -20,10 +20,4 @@
         </ProjectReference>
     </ItemGroup>
 
-    <ItemGroup>
-      <Reference Include="VSteward">
-        <HintPath>Redist\VSteward.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
 </Project>

@@ -163,6 +163,11 @@ public class ACTcpClient : IClient
     /// </summary>
     public event EventHandler<ACTcpClient, EventArgs>? LoggedInAsAdministrator;
 
+    /// <summary>
+    /// Fires when a user clicks on the kick button
+    /// </summary>
+    public event EventHandler<ACTcpClient, PluginVoteKickEventArgs>? VoteKickUser;
+
     private class ACTcpClientLogEventEnricher : ILogEventEnricher
     {
         private readonly ACTcpClient _client;
@@ -734,8 +739,14 @@ public class ACTcpClient : IClient
         if (!_configuration.Extra.EnableKickPlayerVote ||
             _configuration.Extra.VoteKickMinimumConnectedPlayers - 1 > _entryCarManager.ConnectedCars.Count) return;
         VoteKickUser voteKickUser = reader.ReadPacket<VoteKickUser>();
+        var args = new PluginVoteKickEventArgs( voteKickUser.TargetSessionId );
 
-        _ = _voteManager.SetVote(SessionId, VoteType.KickPlayer, voteKickUser.Vote, voteKickUser.TargetSessionId);
+        VoteKickUser?.Invoke( this,args );
+
+        if( !args.Handled )
+        {
+            _ = _voteManager.SetVote( SessionId,VoteType.KickPlayer,voteKickUser.Vote,voteKickUser.TargetSessionId );
+        }
     }
 
     private void OnP2PUpdate(PacketReader reader)

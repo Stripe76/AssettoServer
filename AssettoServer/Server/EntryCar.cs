@@ -22,7 +22,9 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
 { 
     public ACTcpClient? Client { get; internal set; }
     public CarStatus Status { get; private set; } = new CarStatus();
+    public CarStatus? PitStatus { get; set; } = null;
 
+    public bool StorePitStatus { get; set; } = true;
     public bool ForceLights { get; internal set; }
 
     public long LastActiveTime { get; internal set; }
@@ -63,7 +65,7 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
     public event EventHandler<EntryCar, EventArgs>? ResetInvoked;
 
     /// <summary>
-    /// Plugin Ai control
+    /// Plugin car status control, fires in GetPositionUpdateForCar to get the Status from the plugin
     /// </summary>
     public event EventHandler<EntryCar, GetPluginStatusEventArgs>? GetPluginStatus;
 
@@ -72,6 +74,8 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
     private readonly ACServerConfiguration _configuration;
     private readonly EntryCarManager _entryCarManager;
     private readonly SessionManager _sessionManager;
+
+    private List<EntryCar>? _hiddenToCars = null;
 
     public ILogger Logger { get; }
 
@@ -115,6 +119,51 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
             .CreateLogger();
             
         AiInit();
+    }
+
+    public bool IsHiddenToCar( EntryCar toCar )
+    {
+        if( _hiddenToCars == null )
+            return false;
+
+        if( _hiddenToCars.Count == 0 ) 
+            return true;
+
+        foreach( var c in _hiddenToCars )
+        {
+            if( c == toCar )
+                return true;
+        }
+        return false;
+    }
+    public void SetHiddenToCar( EntryCar toCar,bool hidden )
+    {
+        if( hidden )
+        {
+            if( _hiddenToCars == null )
+            {
+                _hiddenToCars = [];
+                _hiddenToCars.Add( toCar );
+            }
+            else if( _hiddenToCars.Count > 0 && !_hiddenToCars.Contains( toCar ) )
+            {
+                _hiddenToCars.Add( toCar );
+            }
+        }
+        else
+        {
+            _hiddenToCars?.Remove( toCar );
+
+            if( _hiddenToCars != null && _hiddenToCars.Count == 0 )
+                _hiddenToCars = null;
+        }
+    }
+    public void SetHiddenToAllCars( bool hidden )
+    {
+        if( hidden )
+            _hiddenToCars = [];
+        else
+            _hiddenToCars = null;
     }
 
     internal void Reset()
@@ -257,9 +306,9 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
 
             status = aiState.Status;
         }
-        else if( PluginControlled )
+        else
         {
-            GetPluginStatusEventArgs args = new GetPluginStatusEventArgs( toCar );
+            var args = new GetPluginStatusEventArgs( toCar );
 
             GetPluginStatus?.Invoke( this,args );
 
@@ -272,11 +321,6 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
                 status = Status;
             }
         }
-        else
-        {
-            status = Status;
-        }
-
         float distanceSquared = Vector3.DistanceSquared(status.Position, targetCarStatus.Position);
         if (TargetCar != null || distanceSquared > NetworkDistanceSquared)
         {

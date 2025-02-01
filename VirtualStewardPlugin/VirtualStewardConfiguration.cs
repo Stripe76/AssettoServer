@@ -7,17 +7,18 @@ namespace VirtualSteward;
 [UsedImplicitly(ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public class VirtualStewardConfiguration : IValidateConfiguration<VirtualStewardConfigurationValidator>
 {
-    [YamlMember(Description = "Start frame of the replay, to skip a part")]
-    public int StartFrame { get; init; } = 0;
+    [YamlMember(Description = "Enables kick hide in practice sessions")]
+    public bool KickHideOnPractice { get; init; } = true;
+    [YamlMember( Description = "Enables kick hide in qualify sessions" )]
+    public bool KickHideOnQualify { get; init; } = false;
+    [YamlMember( Description = "Enables kick hide in race sessions" )]
+    public bool KickHideOnRace { get; init; } = false;
 
-    [YamlMember( Description = "Looping lap number, negative numbers are counted from the end" )]
-    public int LoopLap { get; init; } = -2;
+    [YamlMember( Description = "If enabled a player will become invisible for the players he hides" )]
+    public bool MutualKickHide { get; init; } = false;
 
-    [YamlMember( Description = "Start frame number for the looping part if greater than 0, will override the lap setting" )]
-    public int LoopStart { get; init; } = 0;
-    [YamlMember( Description = "End frame number for the looping part" )]
-    public int LoopEnd { get; init; } = 0;
-
-    [YamlMember( Description = "Number of cars that will auto start and keep looping when the server is launched" )]
-    public int AutoStart { get; init; } = 0;
+    [YamlMember( Description = "Set the maximum qualify lap time to make the car visible in race in ms, zero to disable" )]
+    public uint RaceMaxLaptime { get; init; } = 0;
+    [YamlMember( Description = "Set the maximum qualify lap time as a percentage of the pole, zero to disable" )]
+    public uint RacePolePercentage { get; init; } = 0;
 }
