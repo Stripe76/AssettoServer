@@ -1,6 +1,9 @@
 # AssettoServer [![Build status](https://img.shields.io/github/actions/workflow/status/compujuckel/AssettoServer/dotnet.yml?logo=github&label=Build)](https://github.com/compujuckel/AssettoServer/actions/workflows/dotnet.yml) [![Discord](https://img.shields.io/discord/890676433746268231?logo=discord&label=Discord&color=7289da)](https://discord.gg/uXEXRcSkyz) ![GitHub Downloads)](https://img.shields.io/github/downloads/compujuckel/AssettoServer/total?color=gold&label=Downloads) [![Docker Hub](https://img.shields.io/docker/v/compujuckel/assettoserver?logo=docker&label=Docker)](https://hub.docker.com/r/compujuckel/assettoserver)
 
-## About
+## About this fork
+I made this fork to experiment with Virtual Steward integration in AssettoServer. For now it just adds a plugin that lets "play" an AC replay file as a AI bot.
+
+## About AssettoServer
 AssettoServer is a custom game server for Assetto Corsa developed with freeroam in mind. It greatly improves upon the default game server by fixing various security issues and providing new features like AI traffic and dynamic weather.
 
 Race and Qualification sessions are in an experimental state and might need more testing.
