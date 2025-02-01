@@ -1,15 +1,10 @@
 ﻿using AssettoServer.Server.Configuration;
 using AssettoServer.Server.Plugin;
-using AssettoServer.Shared.Network.Packets.Outgoing;
 using AssettoServer.Shared.Network.Packets.Shared;
 using AssettoServer.Shared.Services;
 using Microsoft.Extensions.Hosting;
-using Serilog;
 using AssettoServer.Server;
 using AssettoServer.Network.Tcp;
-using AssettoServer.Commands.Contexts;
-using AssettoServer.Network.Udp;
-using System.Numerics;
 using AssettoServer.Shared.Model;
 using System.Text;
 
@@ -67,13 +62,19 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
             {
                 uint maxTime = _configuration.RaceMaxLaptime;
 
-                if( _configuration.RacePolePercentage > 0 )
+                if( _configuration.RacePolePercentage > 0 && session.Grid != null )
                 {
-                    // TODO
+                    var pole = session.Grid.First( );
+                    if( pole != null )
+                    {
+                        var entryCar = qualy.Results[pole.SessionId];
+
+                        maxTime = (uint)(entryCar.BestLap * (_configuration.RacePolePercentage / 100.0f));
+                    }
                 }
                 if( maxTime > 0 )
                 {
-                    StringBuilder message = new ( );
+                    StringBuilder message = new ( $"Treshold lap time {TimeFromMilliseconds( maxTime )}\r\n" );
                     var valids = qualy.Results
                         .Where(result => result.Value.BestLap < maxTime)
                         .Select(result => _entryCarManager.EntryCars[result.Key])
@@ -185,4 +186,19 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
             }
         }
     }
+
+    #region Helpers
+    public static string TimeFromMilliseconds( uint milliseconds,bool writeMs = true )
+    {
+        if( milliseconds >= 3600000 )
+        {
+            if( writeMs )
+                return String.Format( "{0:00}:{1:00}:{2:00}:{3:000}",milliseconds / 60000 / 60,milliseconds / 60000,milliseconds / 1000 % 60,milliseconds % 1000 );
+            return String.Format( "{0:00}:{1:00}:{2:00}",milliseconds / 60000 / 60,milliseconds / 60000,milliseconds / 1000 % 60,milliseconds % 1000 );
+        }
+        if( writeMs )
+            return String.Format( "{1:00}:{2:00}:{3:000}",milliseconds / 60000 / 60,milliseconds / 60000,milliseconds / 1000 % 60,milliseconds % 1000 );
+        return String.Format( "{1:00}:{2:00}",milliseconds / 60000 / 60,milliseconds / 60000,milliseconds / 1000 % 60,milliseconds % 1000 );
+    }
+    #endregion
 }
