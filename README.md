@@ -1,7 +1,7 @@
 # AssettoServer [![Build status](https://img.shields.io/github/actions/workflow/status/compujuckel/AssettoServer/dotnet.yml?logo=github&label=Build)](https://github.com/compujuckel/AssettoServer/actions/workflows/dotnet.yml) [![Discord](https://img.shields.io/discord/890676433746268231?logo=discord&label=Discord&color=7289da)](https://discord.gg/uXEXRcSkyz) ![GitHub Downloads)](https://img.shields.io/github/downloads/compujuckel/AssettoServer/total?color=gold&label=Downloads) [![Docker Hub](https://img.shields.io/docker/v/compujuckel/assettoserver?logo=docker&label=Docker)](https://hub.docker.com/r/compujuckel/assettoserver)
 
 ## About this fork
-I made this fork to experiment with Virtual Steward integration in AssettoServer. There are two additional plugins, the first one (VSReplayPlugin) lets you "play" an AC replay file as a bot. I won't develop it any further because AssettoServer guys are working on the same thing. The second one (VitualStewardPlugin) is meant as an experiment to improve public lobbies, it can selectively hide players for each client. There are three modes:
+I made this fork to experiment with Virtual Steward integration in AssettoServer. There are two additional plugins, the first one (VSReplayPlugin) lets you "play" an AC replay file as a bot. I won't develop it any further because AssettoServer guys are working on the same thing. The second one (VirtualStewardPlugin) is meant as an experiment to improve public lobbies, it can selectively hide players for each client. There are three modes:
 
 **Qualifying**: everbody is hidden.
 
