@@ -14,6 +14,7 @@ using AssettoServer.Shared.Network.Packets;
 using System.Xml.Linq;
 using System.Numerics;
 using AssettoServer.Shared.Model;
+using System.Text;
 
 namespace VirtualSteward;
 
@@ -33,6 +34,7 @@ public class VSBot
     public int LoopEnd = -1;
 
     public long TimeStampStart = 0;
+    public long ServerTimeStart = 0;
     public float SteeringRatio = 14;
 
     public VCar? Car = null;
@@ -98,8 +100,6 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
     private readonly List<EntryCar> _targetCars = [];
     private readonly VSTargetPositionList _targetPositions = [];
 
-    private static ThreadLocal<byte[]> UdpSendBuffer { get; } = new( ( ) => GC.AllocateArray<byte>( 1500,true ) );
-
     private VReplay? _replay = null;
 
     public VSReplayPlugin( ACUdpServer udpServer,SessionManager sessionManager,VSReplayConfiguration configuration,ACServerConfiguration serverConfiguration,EntryCarManager entryCarManager,IHostApplicationLifetime applicationLifetime ) : base( applicationLifetime )
@@ -111,6 +111,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
         _entryCarManager = entryCarManager;
 
         _entryCarManager.ClientDisconnected += EntryCarManager_ClientDisconnected;
+        _sessionManager.SessionChanged += SessionManager_SessionChanged;
     }
 
     internal void ClientStartBot( ChatCommandContext context, bool startMoving = false )
@@ -214,7 +215,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                 int n = _configuration.LoopLap;
                 if( n >= 0 && n < vsCar.Laps.Count )
                     lap = vsCar.Laps[n];
-                if( n < 0 && vsCar.Laps.Count-n >= 0 )
+                if( n < 0 && vsCar.Laps.Count+n >= 0 && vsCar.Laps.Count + n < vsCar.Laps.Count )
                     lap = vsCar.Laps[vsCar.Laps.Count + n];
 #if DEBUG
                 if( lap != null )
@@ -345,6 +346,9 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
         for( int i = 0; i < _bots.Count; i++ )
         {
             VSBot bot = _bots[i];
+            if( !bot.IsActive && bot.ServerTimeStart > 0 && bot.ServerTimeStart < _sessionManager.ServerTimeMilliseconds )
+                bot.IsActive = true;
+
             if( bot != null && bot.IsActive && bot.Car != null )
             {
                 VCar vsCar = bot.Car;
@@ -372,7 +376,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                     }
                 }
                 var car = _entryCarManager.EntryCars[bot.CarIndex];
-                if( car != null )
+                if( car != null && bot.Frame >= 0 )
                 {
                     VCarPos carPos = vsCar.GetCarPos( bot.Frame );
                     if( carPos != null )
@@ -420,7 +424,6 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                         car.Status.NormalizedPosition = 0;
 
                         car.HasUpdateToSend = true;
-                        //SendUpdate( car );
                     }
                 }
             }
@@ -522,6 +525,39 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
             _ = UpdateAsync( stoppingToken );
         }
         return Task.CompletedTask;
+    }
+
+    private void SessionManager_SessionChanged( SessionManager sender,SessionChangedEventArgs args )
+    {
+        SessionState session = args.NextSession;
+        if( _configuration.RaceCars > 0 )
+        {
+            if( session.Configuration.Type == SessionType.Race )
+            {
+                for( int i = 0; i < _configuration.RaceCars && i < _bots.Count; i++ )
+                {
+                    _bots[i].Frame = _bots[i].FrameStart + 1;
+                    _bots[i].ServerTimeStart = session.StartTimeMilliseconds - 30000;
+
+                    if( session.Grid is not null and List<EntryCar> grid )
+                    {
+                        var car = _entryCarManager.EntryCars[_bots[i].CarIndex];
+
+                        grid.Remove( car );
+                        grid.Insert( 0,car );
+                    }
+                }
+            }
+            else
+            {
+                for( int i = 0; i < _configuration.RaceCars && i < _bots.Count; i++ )
+                {
+                    _bots[i].IsActive = false;
+                    _bots[i].Frame = -1;
+                    _bots[i].ServerTimeStart = 0;
+                }
+            }
+        }
     }
 
     private void Client_Collision( ACTcpClient client,CollisionEventArgs args )

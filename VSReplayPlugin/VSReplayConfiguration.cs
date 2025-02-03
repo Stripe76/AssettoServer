@@ -20,4 +20,7 @@ public class VSReplayConfiguration : IValidateConfiguration<VSReplayConfiguratio
 
     [YamlMember( Description = "Number of cars that will auto start and keep looping when the server is launched" )]
     public int AutoStart { get; init; } = 0;
+
+    [YamlMember( Description = "Number of cars that will start in a race session, the reaply file must contains at least those" )]
+    public int RaceCars { get; init; } = 0;
 }

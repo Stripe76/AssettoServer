@@ -15,12 +15,12 @@ public class DynamicTrackConfiguration
 
     private float _variance = (float) (Random.Shared.NextDouble() * 2 - 1) / 100;
     
-    public float BaseGrip => Math.Min(StartGrip + _variance * Randomness, 1);
+    public float BaseGrip => Math.Min(StartGrip + _variance * Randomness, 2);
     public float TotalLapCount { get; internal set; }
     private float GripPerLap => 1 / (LapGain * 100);
     public float? OverrideGrip { get; set; } = null;
 
-    public float CurrentGrip => OverrideGrip ?? (LapGain == 0 ? BaseGrip : Math.Min(BaseGrip + GripPerLap * TotalLapCount, 1));
+    public float CurrentGrip => OverrideGrip ?? (LapGain == 0 ? BaseGrip : Math.Min(BaseGrip + GripPerLap * TotalLapCount, 2));
     public void TransferSession()
     {
         TotalLapCount *= SessionTransfer;

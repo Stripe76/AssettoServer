@@ -60,7 +60,8 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
             SessionState? qualy = args.PreviousSession;
             if( qualy != null && qualy.Configuration.Type == SessionType.Qualifying && qualy.Results != null)
             {
-                uint maxTime = _configuration.RaceMaxLaptime;
+                uint maxTimeTier1 = _configuration.RaceMaxLaptimeTier1;
+                uint maxTimeTier2 = _configuration.RaceMaxLaptimeTier2;
 
                 if( _configuration.RacePolePercentage > 0 && session.Grid != null )
                 {
@@ -69,29 +70,61 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
                     {
                         var entryCar = qualy.Results[pole.SessionId];
 
-                        maxTime = (uint)(entryCar.BestLap * (_configuration.RacePolePercentage / 100.0f));
+                        maxTimeTier1 = (uint)(entryCar.BestLap * (_configuration.RacePolePercentage / 100.0f));
+
+                        if( maxTimeTier1 > maxTimeTier2 )
+                            maxTimeTier2 = maxTimeTier1;
                     }
                 }
-                if( maxTime > 0 )
+                if( maxTimeTier1 > 0 )
                 {
-                    StringBuilder message = new ( $"Treshold lap time {TimeFromMilliseconds( maxTime )}\r\n" );
-                    var valids = qualy.Results
-                        .Where(result => result.Value.BestLap < maxTime)
+                    if( maxTimeTier2 == 0 )
+                        maxTimeTier2 = maxTimeTier1;
+
+                    var tier1 = qualy.Results
+                        .Where(result => result.Value.BestLap <= maxTimeTier1)
                         .Select(result => _entryCarManager.EntryCars[result.Key])
                         .ToList();
 
-                    var toHides = qualy.Results
-                        .Where(result => result.Value.BestLap > maxTime || result.Value.BestLap == 0 )
+                    var tier2 = qualy.Results
+                        .Where(result => result.Value.BestLap <= maxTimeTier2 && result.Value.BestLap > maxTimeTier1)
                         .Select(result => _entryCarManager.EntryCars[result.Key])
                         .ToList();
 
-                    foreach( var entryCar in toHides )
+                    var tier3 = qualy.Results
+                        .Where(result => result.Value.BestLap > maxTimeTier2 || result.Value.BestLap == 0 )
+                        .Select(result => _entryCarManager.EntryCars[result.Key])
+                        .ToList();
+
+                    StringBuilder message = new ( $"Treshold lap time for tier 1: {TimeFromMilliseconds( maxTimeTier1 )}\r\n" );
+                    foreach( var entryCar in tier1 )
+                    {
+                        if( entryCar.Client != null && entryCar.Client.IsConnected )
+                            message.AppendLine( $"Player: {entryCar.Client.Name}" );
+                    }
+                    if( maxTimeTier2 != 0 )
+                    {
+                        message.AppendLine( $"Treshold lap time for tier 2: {TimeFromMilliseconds( maxTimeTier2 )}" );
+                        foreach( var entryCar in tier2 )
+                        {
+                            if( entryCar.Client != null && entryCar.Client.IsConnected )
+                            {
+                                foreach( var target in tier1 )
+                                    entryCar.SetHiddenToCar( target,true );
+                                message.AppendLine( $"Player {entryCar.Client.Name}" );
+                            }
+                        }
+                    }
+                    message.AppendLine( "Tier 3:" );
+                    foreach( var entryCar in tier3 )
                     {
                         if( entryCar.Client != null && entryCar.Client.IsConnected )
                         {
-                            foreach( var target in valids )
+                            foreach( var target in tier1 )
                                 entryCar.SetHiddenToCar( target,true );
-                            message.AppendLine( $"Player {entryCar.Client.Name} is hidden" );
+                            foreach( var target in tier2 )
+                                entryCar.SetHiddenToCar( target,true );
+                            message.AppendLine( $"Player {entryCar.Client.Name}" );
                         }
                     }
                     if( message.Length > 0 )

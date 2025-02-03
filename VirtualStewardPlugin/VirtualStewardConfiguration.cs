@@ -17,8 +17,10 @@ public class VirtualStewardConfiguration : IValidateConfiguration<VirtualSteward
     [YamlMember( Description = "If enabled a player will become invisible for the players he hides" )]
     public bool MutualKickHide { get; init; } = false;
 
-    [YamlMember( Description = "Set the maximum qualify lap time to make the car visible in race in ms, zero to disable" )]
-    public uint RaceMaxLaptime { get; init; } = 0;
-    [YamlMember( Description = "Set the maximum qualify lap time as a percentage of the pole, zero to disable" )]
+    [YamlMember( Description = "Set the maximum qualify lap time to make the car visible in tier 1 in ms, zero to disable" )]
+    public uint RaceMaxLaptimeTier1 { get; init; } = 0;
+    [YamlMember( Description = "Set the maximum qualify lap time to make the car visible in tier 2 in ms, zero to disable" )]
+    public uint RaceMaxLaptimeTier2 { get; init; } = 0;
+    [YamlMember( Description = "Set the maximum qualify lap time as a percentage of the pole for tier 1, zero to disable" )]
     public uint RacePolePercentage { get; init; } = 0;
 }

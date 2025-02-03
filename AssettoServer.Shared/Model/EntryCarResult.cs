@@ -22,5 +22,6 @@ public class EntryCarResult
         Name = client.Name ?? "";
         Team = client.Team ?? "";
         NationCode = client.NationCode ?? "";
+        BestLap = 999999998;
     }
 }
