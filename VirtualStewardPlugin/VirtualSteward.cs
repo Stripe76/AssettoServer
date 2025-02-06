@@ -7,6 +7,7 @@ using AssettoServer.Server;
 using AssettoServer.Network.Tcp;
 using AssettoServer.Shared.Model;
 using System.Text;
+using System.ServiceModel.Channels;
 
 namespace VirtualSteward;
 
@@ -26,15 +27,6 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
 
         _entryCarManager.ClientConnected += EntryCarManager_ClientConnected;
         _sessionManager.SessionChanged += SessionManager_SessionChanged;
-    }
-
-    private void SendMessage( EntryCar car,string message )
-    {
-        SendMessage( car.Client,message );
-    }
-    private void SendMessage( ACTcpClient? tcpClient,string message )
-    {
-        tcpClient?.SendPacket( new ChatMessage { SessionId = 255,Message = message } );
     }
 
     protected override Task ExecuteAsync( CancellationToken stoppingToken )
@@ -96,26 +88,27 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
                         .Select(result => _entryCarManager.EntryCars[result.Key])
                         .ToList();
 
-                    StringBuilder message = new ( $"Treshold lap time for tier 1: {TimeFromMilliseconds( maxTimeTier1 )}\r\n" );
+                    StringBuilder message = new ( $"----- Race tiers -----\r\n" );
+                    message.AppendLine( $"Tier 1 players ({TimeFromMilliseconds( maxTimeTier1 )}): \r\n" );
                     foreach( var entryCar in tier1 )
                     {
                         if( entryCar.Client != null && entryCar.Client.IsConnected )
-                            message.AppendLine( $"Player: {entryCar.Client.Name}" );
+                            message.AppendLine( $"{entryCar.Client.Name}" );
                     }
                     if( maxTimeTier2 != 0 )
                     {
-                        message.AppendLine( $"Treshold lap time for tier 2: {TimeFromMilliseconds( maxTimeTier2 )}" );
+                        message.AppendLine( $"Tier 2 players ({TimeFromMilliseconds( maxTimeTier2 )}):" );
                         foreach( var entryCar in tier2 )
                         {
                             if( entryCar.Client != null && entryCar.Client.IsConnected )
                             {
                                 foreach( var target in tier1 )
                                     entryCar.SetHiddenToCar( target,true );
-                                message.AppendLine( $"Player {entryCar.Client.Name}" );
+                                message.AppendLine( $"{entryCar.Client.Name}" );
                             }
                         }
                     }
-                    message.AppendLine( "Tier 3:" );
+                    message.AppendLine( "Tier 3 players:" );
                     foreach( var entryCar in tier3 )
                     {
                         if( entryCar.Client != null && entryCar.Client.IsConnected )
@@ -124,12 +117,12 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
                                 entryCar.SetHiddenToCar( target,true );
                             foreach( var target in tier2 )
                                 entryCar.SetHiddenToCar( target,true );
-                            message.AppendLine( $"Player {entryCar.Client.Name}" );
+                            message.AppendLine( $"{entryCar.Client.Name}" );
                         }
                     }
                     if( message.Length > 0 )
                     {
-                        _entryCarManager.BroadcastPacket( new ChatMessage { SessionId = 255,Message = message.ToString( ) } );
+                        BroadcastMessage( message.ToString( ) );
                     }
                 }
             }
@@ -139,6 +132,7 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
     private void EntryCarManager_ClientConnected( ACTcpClient sender,EventArgs args )
     {
         sender.VoteKickUser += Client_VoteKickUser;
+        sender.FirstUpdateSent += Client_FirstUpdateSent;
 
         if( sender.EntryCar != null )
         {
@@ -154,6 +148,15 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
         }
     }
 
+    private void Client_FirstUpdateSent( ACTcpClient sender,EventArgs args )
+    {
+        SendMessage( sender,"Virtual Steward plugin is running" );
+
+        if( _configuration.RaceMaxLaptimeTier1 > 0 )
+            SendMessage( sender,$"Tier 1 treshold time is {TimeFromMilliseconds( _configuration.RaceMaxLaptimeTier1 )}" );
+        if( _configuration.RaceMaxLaptimeTier2 > 0 )
+            SendMessage( sender,$"Tier 2 treshold time is {TimeFromMilliseconds( _configuration.RaceMaxLaptimeTier2 )}" );
+    }
     private void Client_VoteKickUser( ACTcpClient sender,PluginVoteKickEventArgs args )
     {
         SessionType sessionType = _sessionManager.CurrentSession.Configuration.Type;
@@ -221,6 +224,19 @@ public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAut
     }
 
     #region Helpers
+    private void SendMessage( EntryCar car,string message )
+    {
+        SendMessage( car.Client,message );
+    }
+    private void SendMessage( ACTcpClient? tcpClient,string message )
+    {
+        tcpClient?.SendPacket( new ChatMessage { SessionId = 255,Message = message } );
+    }
+    private void BroadcastMessage( string message )
+    {
+        _entryCarManager.BroadcastPacket( new ChatMessage { SessionId = 255,Message = message } );
+    }
+
     public static string TimeFromMilliseconds( uint milliseconds,bool writeMs = true )
     {
         if( milliseconds >= 3600000 )
