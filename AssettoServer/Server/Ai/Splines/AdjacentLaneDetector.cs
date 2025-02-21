@@ -44,7 +44,7 @@ public static class AdjacentLaneDetector
                 var targetVec = OffsetVec(point.Position, -direction + 90, laneWidth);
 
                 var found = map.WorldToSpline(targetVec);
-                if (found.PointId >= 0 && found.DistanceSquared < LaneDetectionRadius * LaneDetectionRadius)
+                if (found.PointId >= 0 && found.PointId != point.Id && found.DistanceSquared < LaneDetectionRadius * LaneDetectionRadius)
                 {
                     point.LeftId = found.PointId;
                     if (spo.IsSameDirection(point.Id, found.PointId))
@@ -60,7 +60,7 @@ public static class AdjacentLaneDetector
                 targetVec = OffsetVec(point.Position, -direction - 90, laneWidth);
 
                 found = map.WorldToSpline(targetVec);
-                if (found.PointId >= 0 && found.DistanceSquared < LaneDetectionRadius * LaneDetectionRadius)
+                if (found.PointId >= 0 && found.PointId != point.Id && found.DistanceSquared < LaneDetectionRadius * LaneDetectionRadius)
                 {
                     point.RightId = found.PointId;
                     if (spo.IsSameDirection(point.Id, found.PointId))
