@@ -70,6 +70,9 @@ public class AiState : IDisposable
     private long _nextLaneChange = 0;
     private float _lanechangeVecLength;
     private float _lanechangeVecProgress;
+    private int _lanechangeEnabled = 0;
+    private int _lanechangeDelay = 10;
+    private float _lanechangeDistance = 4;
 
     private readonly ACServerConfiguration _configuration;
     private readonly SessionManager _sessionManager;
@@ -191,6 +194,11 @@ public class AiState : IDisposable
         _endIndicatorDistance = 0;
         _lastTick = _sessionManager.ServerTimeMilliseconds;
         _minObstacleDistance = Random.Shared.Next( 8,13 );
+
+        _lanechangeEnabled = _configuration.Extra.AiParams.EnableLaneChange;
+        _lanechangeDelay = _configuration.Extra.AiParams.LaneChangeDelay * 1000;
+        _lanechangeDistance = _configuration.Extra.AiParams.LaneChangeDistance;
+
         SpawnCounter++;
         Initialized = true;
         Update( );
@@ -404,25 +412,23 @@ public class AiState : IDisposable
 
         return (closestAiState, closestAiStateDistance, maxSpeed);
     }
-    public (AiState? ClosestAiState, float ClosestAiStateDistance, float CurrentSpeed) SplineLookback( int pointId,float maxDistance )
+    public (AiState? ClosestAiState, float ClosestAiStateDistance, float ClosestSpeed) SplineLookback( int pointId,float maxDistance )
     {
         var points = _spline.Points;
         var junctions = _spline.Junctions;
 
-        float maxBrakingDistance = PhysicsUtils.CalculateBrakingDistance(CurrentSpeed, EntryCar.AiDeceleration) * 2 + 20;
         AiState? closestAiState = null;
         float closestAiStateDistance = float.MaxValue;
         float distanceTravelled = 0;
+        float closestSpeed = float.MaxValue;
+
         ref readonly var point = ref points[pointId];
-        float maxSpeed = float.MaxValue;
-        float currentSpeedSquared = CurrentSpeed * CurrentSpeed;
         while( distanceTravelled < maxDistance )
         {
             distanceTravelled += point.Length;
-            pointId = _junctionEvaluator.Previous( pointId );
+            pointId = point.PreviousId;
             if( pointId < 0 )
                 break;
-
             point = ref points[pointId];
 
             if( closestAiState == null )
@@ -435,12 +441,12 @@ public class AiState : IDisposable
                     closestAiStateDistance = MathF.Max( 0,Vector3.Distance( Status.Position,closestAiState.Status.Position )
                                                           - EntryCar.VehicleLengthPreMeters
                                                           - closestAiState.EntryCar.VehicleLengthPostMeters );
-                    maxSpeed = slowest.CurrentSpeed;
+                    closestSpeed = slowest.CurrentSpeed;
                     break;
                 }
             }
         }
-        return (closestAiState, closestAiStateDistance, maxSpeed);
+        return (closestAiState, closestAiStateDistance, closestSpeed);
     }
 
     private bool ShouldIgnorePlayerObstacles( )
@@ -669,16 +675,9 @@ public class AiState : IDisposable
     {
         if( _laneChange == 0 && _nextLaneChange < _lastTick )
         {
-            var ops = _spline.Operations;
+            (int changeId, int side) = SelectLaneChangeSide( );
 
-            int side = 1;
-            int changeId = ops.Points[CurrentSplinePointId].LeftId;
-            if( changeId < 0 )
-            {
-                side = -1;
-                changeId = ops.Points[CurrentSplinePointId].RightId;
-            }
-            float length = 4 * CurrentSpeed;
+            float length = _lanechangeDistance * CurrentSpeed;
             if( changeId >= 0 && (!checkLaneForTraffic || CanChangeLane( changeId + 5,length / 2 )) )
             {
                 _laneChange = side;
@@ -690,13 +689,36 @@ public class AiState : IDisposable
         }
         return false;
     }
-    private void ResetLaneChange( )
+    private (int pointId, int side) SelectLaneChangeSide( )
     {
-        _laneChange = 0;
-        _lanechangeVecLength = 0;
-        _lanechangeVecProgress = 0;
+        int side = 0;
+        int changeId = -1;
 
-        _nextLaneChange = _lastTick + Random.Shared.Next( 10000,2 * 10000 );
+        var ops = _spline.Operations;
+        if( _lanechangeEnabled == 1 || _lanechangeEnabled == 3 )
+        {
+            side = 1;
+            changeId = ops.Points[CurrentSplinePointId].LeftId;
+        }
+        if( _lanechangeEnabled == 2 || ( _lanechangeEnabled == 3 && ( changeId < 0 || Random.Shared.Next( 2 ) == 0 ) ) )
+        {
+            if( ops.Points[CurrentSplinePointId].RightId >= 0 )
+            {
+                side = -1;
+                changeId = ops.Points[CurrentSplinePointId].RightId;
+            }
+        }
+        return (changeId,side);
+    }
+    private bool CanChangeLane( int pointId,float distance )
+    {
+        var splineLookback = SplineLookback( pointId,distance );
+
+        if( splineLookback.ClosestAiState == null )
+            return true;
+        if( splineLookback.ClosestSpeed < CurrentSpeed )
+            return splineLookback.ClosestAiStateDistance > 15;
+        return false;
     }
     private int GetLaneChangePointId( int currentPointId,int side )
     {
@@ -710,15 +732,13 @@ public class AiState : IDisposable
             return id;
         return ops.Points[currentPointId].RightId;
     }
-    private bool CanChangeLane( int pointId,float distance )
+    private void ResetLaneChange( )
     {
-        var splineLookback = SplineLookback( pointId,distance );
+        _laneChange = 0;
+        _lanechangeVecLength = 0;
+        _lanechangeVecProgress = 0;
 
-        if( splineLookback.ClosestAiState == null )
-            return true;
-        if( splineLookback.CurrentSpeed < CurrentSpeed )
-            return true;
-        return false;
+        _nextLaneChange = _lastTick + Random.Shared.Next( _lanechangeDelay,_lanechangeDelay*2 );
     }
 
     public void Update( )
@@ -795,6 +815,14 @@ public class AiState : IDisposable
             Y = (MathF.Atan2(new Vector2(smoothPos.Tangent.Z, smoothPos.Tangent.X).Length(), smoothPos.Tangent.Y) - MathF.PI / 2) * -1f,
             Z = ops.GetCamber(CurrentSplinePointId, _currentVecProgress / _currentVecLength)
         };
+#if DEBUG
+        //if( rotation.X > MathF.PI || rotation.X < -MathF.PI )
+            //Log.Error( $"rotation.X: {rotation.X}" );
+#endif
+        if( rotation.X > MathF.PI )
+            rotation.X = -MathF.PI + (rotation.X - MathF.PI);
+        else if( rotation.X < -MathF.PI )
+            rotation.X = MathF.PI + (rotation.X + MathF.PI);
 
         float tyreAngularSpeed = GetTyreAngularSpeed(CurrentSpeed, EntryCar.TyreDiameterMeters);
         byte encodedTyreAngularSpeed =  (byte) (Math.Clamp(MathF.Round(MathF.Log10(tyreAngularSpeed + 1.0f) * 20.0f) * Math.Sign(tyreAngularSpeed), -100.0f, 154.0f) + 100.0f);

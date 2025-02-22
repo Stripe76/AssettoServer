@@ -47,7 +47,14 @@ public partial class AiParams : ObservableObject
     public float RightLaneOffsetKph { get; set; } = 10;
     [YamlMember(Description = "Maximum speed variation")]
     public float MaxSpeedVariationPercent { get; set; } = 0.15f;
-    
+
+    [YamlMember( Description = "Enable lane change: 0 = off, 1 = only left, 2 = only right, 3 = both side (random)" )]
+    public int EnableLaneChange { get; set; } = 0;
+    [YamlMember( Description = "Lane change delay after the last change in seconds" )]
+    public int LaneChangeDelay { get; set; } = 10;
+    [YamlMember( Description = "Lane change distance multiplier" )]
+    public float LaneChangeDistance { get; set; } = 4.0f;
+
     [ObservableProperty]
     [property: YamlMember(Description = "Default AI car deceleration for obstacle/collision detection (m/s^2)")]
     private float _defaultDeceleration = 8.5f;
