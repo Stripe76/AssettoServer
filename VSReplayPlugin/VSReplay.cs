@@ -265,7 +265,11 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                         {
                             bot.IsActive = true;
                             bot.Loop = true;
-                            bot.Frame = bot.LoopStart + (( bot.LoopEnd - bot.LoopStart ) / _configuration.AutoStart) * autoStart;
+
+                            if( _configuration.AutoStartOffset > 0 )
+                                bot.Frame = bot.LoopStart + _configuration.AutoStartOffset * autoStart;
+                            else
+                                bot.Frame = bot.LoopStart + (( bot.LoopEnd - bot.LoopStart ) / _configuration.AutoStart) * autoStart;
                         }
                         _bots.Add( bot );
                     }
