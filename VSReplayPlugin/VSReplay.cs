@@ -1,20 +1,16 @@
-﻿using AssettoServer.Server.Configuration;
+﻿using AssettoServer.Commands.Contexts;
+using AssettoServer.Network.Tcp;
+using AssettoServer.Network.Udp;
+using AssettoServer.Server;
+using AssettoServer.Server.Configuration;
 using AssettoServer.Server.Plugin;
-using AssettoServer.Shared;
+using AssettoServer.Shared.Model;
 using AssettoServer.Shared.Network.Packets.Outgoing;
 using AssettoServer.Shared.Network.Packets.Shared;
 using AssettoServer.Shared.Services;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using AssettoServer.Server;
-using AssettoServer.Network.Tcp;
-using AssettoServer.Commands.Contexts;
-using AssettoServer.Network.Udp;
-using AssettoServer.Shared.Network.Packets;
-using System.Xml.Linq;
 using System.Numerics;
-using AssettoServer.Shared.Model;
-using System.Text;
 
 namespace VirtualSteward;
 
@@ -256,7 +252,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                             bot.LoopStart = lap.nStart;
                             bot.LoopEnd = lap.nFinish;
                         }
-                        if( _configuration.LoopStart > 0 )
+                        if( _configuration.LoopStart > 0 || _configuration.LoopEnd > 0 )
                             bot.LoopStart = _configuration.LoopStart;
                         if( _configuration.LoopEnd > 0 )
                             bot.LoopEnd = _configuration.LoopEnd;
@@ -359,7 +355,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                 if( bot.TimeStampStart < 0 )
                     bot.TimeStampStart = _sessionManager.ServerTimeMilliseconds;
 
-                if( bot.Frame > bot.FrameStart )
+                if( bot.Frame >= bot.FrameStart )
                     bot.Frame++;
 
                 if( bot.Loop && bot.LoopEnd > 0 && bot.Frame > bot.LoopEnd )
@@ -410,10 +406,30 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                         //car.Status.PakSequenceId = (byte)bot.Frame;
                         car.Status.Position = new System.Numerics.Vector3( (float)carPos.xBody,(float)carPos.zBody,(float)carPos.yBody );
                         car.Status.Rotation = new System.Numerics.Vector3( (float)carPos.aBodyX,(float)carPos.aBodyY,(float)carPos.aBodyZ );
+    
                         if( bot.Frame > bot.FrameStart )
-                            car.Status.Velocity = new System.Numerics.Vector3( carPos.fXVelocity,carPos.fZVelocity,carPos.fYVelocity );
+                        {
+                            if( _configuration.RecalcVelocities && bot.Frame > 0 )
+                            {
+                                VCarPos prevPos = vsCar.GetCarPos( bot.Frame-1 );
+                                if( prevPos != null )
+                                {
+                                    float X = (float)(((carPos.xBody - prevPos.xBody) / _replay.ReplayFrequency) * 1000f);
+                                    float Y = (float)(((carPos.yBody - prevPos.yBody) / _replay.ReplayFrequency) * 1000f);
+                                    float Z = (float)(((carPos.zBody - prevPos.zBody) / _replay.ReplayFrequency) * 1000f);
+
+                                    car.Status.Velocity = new System.Numerics.Vector3( X,Z,Y );
+                                }
+                            }
+                            else
+                            {
+                                car.Status.Velocity = new System.Numerics.Vector3( carPos.fXVelocity,carPos.fZVelocity,carPos.fYVelocity );
+                            }
+                        }
                         else
+                        {
                             car.Status.Velocity = new System.Numerics.Vector3( 0,0,0 );
+                        }
                         car.Status.TyreAngularSpeed[0] = asFL;
                         car.Status.TyreAngularSpeed[1] = asFR;
                         car.Status.TyreAngularSpeed[2] = asRL;
@@ -524,7 +540,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
 
     protected override Task ExecuteAsync( CancellationToken stoppingToken )
     {
-        if( LoadReplay( "replay.acreplay" ) )
+        if( LoadReplay( _configuration.ReplayFile ) )
         {
             _ = UpdateAsync( stoppingToken );
         }
