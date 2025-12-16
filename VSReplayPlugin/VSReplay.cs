@@ -17,10 +17,13 @@ namespace VirtualSteward;
 public class VSBot
 {
     public bool IsActive = false;
+    public bool IsWaiting = false;
+
     public int SessionId = -1;
     public int CarIndex = -1;
     public byte PakSequenceId = 0;
     public int Frame = -1;
+    public int ResetCount = 0;
 
     public bool Loop = true;
 
@@ -39,7 +42,10 @@ public class VSBot
     public void Reset( )
     {
         IsActive = false;
+        IsWaiting = false;
+
         Frame = -1;
+        ResetCount = 10;
         TimeStampStart = -1;
         Client = null;
     }
@@ -122,14 +128,16 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                 if( bot != null )
                 {
                     bot.IsActive = true;
+                    bot.IsWaiting = !startMoving;
                     bot.Client = context.Client;
                     bot.Loop = true;
-                    bot.Frame = bot.FrameOffset = (startMoving) ? bot.FrameStart + 1 : bot.FrameStart;
+                    bot.Frame = bot.FrameOffset = bot.FrameStart;
+                    bot.PakSequenceId = 0;
 
                     if( startMoving )
                         context.Broadcast( "SC exiting" );
                     else
-                        context.Broadcast( "Bot activated - Get close to it to make it start" );
+                        context.Broadcast( "Bot activated - Get close to make it start" );
                 }
                 else
                 {
@@ -138,7 +146,8 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
             }
             else
             {
-                bot.Frame = bot.FrameOffset = (startMoving) ? bot.FrameStart + 1 : bot.FrameStart;
+                bot.IsWaiting = !startMoving;
+                bot.Frame = bot.FrameOffset = bot.FrameStart;
                 bot.TimeStampStart = -1;
 
                 context.Broadcast( "Bot reset" );
@@ -349,101 +358,141 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
             if( !bot.IsActive && bot.ServerTimeStart > 0 && bot.ServerTimeStart < _sessionManager.ServerTimeMilliseconds )
                 bot.IsActive = true;
 
-            if( bot != null && bot.IsActive && bot.Car != null )
+            if( bot != null && bot.Car != null )
             {
-                VCar vsCar = bot.Car;
-                if( bot.TimeStampStart < 0 )
-                    bot.TimeStampStart = _sessionManager.ServerTimeMilliseconds;
-
-                if( bot.Frame >= bot.FrameStart )
-                    bot.Frame++;
-
-                if( bot.Loop && bot.LoopEnd > 0 && bot.Frame > bot.LoopEnd )
+                if( bot.IsActive )
                 {
-                    bot.Frame = bot.FrameOffset = bot.LoopStart;
-                    bot.TimeStampStart = _sessionManager.ServerTimeMilliseconds;
-                }
-                if( bot.Frame >= vsCar.Positions.Count )
-                {
-                    if( bot.Loop )
+                    VCar vsCar = bot.Car;
+                    if( bot.TimeStampStart < 0 )
+                        bot.TimeStampStart = _sessionManager.ServerTimeMilliseconds;
+
+                    if( !bot.IsWaiting )
+                        bot.Frame++;
+
+                    if( bot.Loop && bot.LoopEnd > 0 && bot.Frame > bot.LoopEnd )
                     {
-                        bot.Frame = bot.FrameOffset = bot.FrameStart;
+                        bot.Frame = bot.FrameOffset = bot.LoopStart;
                         bot.TimeStampStart = _sessionManager.ServerTimeMilliseconds;
                     }
-                    else
+                    if( bot.Frame >= vsCar.Positions.Count )
                     {
-                        bot.Reset( );
-                    }
-                }
-                var car = _entryCarManager.EntryCars[bot.CarIndex];
-                if( car != null && bot.Frame >= 0 )
-                {
-                    VCarPos carPos = vsCar.GetCarPos( bot.Frame );
-                    if( carPos != null )
-                    {
-                        float fSteeringRatio = bot.SteeringRatio;
-
-                        int nSteerAngle = (int)((carPos.fSteeringWheel / 270.0F) * 254);
-                        if( nSteerAngle > 127 )
-                            nSteerAngle = 127;
-                        if( nSteerAngle < -127 )
-                            nSteerAngle = -127;
-
-                        byte asFL = 100,asFR = 100, asRL = 100, asRR = 100;
-                        if( !float.IsNaN( carPos.fFLAngular ) )
-                            asFL = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fFLAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fFLAngular ),-100.0f,154.0f ) + 100.0f);
-                        if( !float.IsNaN( carPos.fFRAngular ) )
-                            asFR = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fFRAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fFRAngular ),-100.0f,154.0f ) + 100.0f);
-                        if( !float.IsNaN( carPos.fRLAngular ) )
-                            asRL = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fRLAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fRLAngular ),-100.0f,154.0f ) + 100.0f);
-                        if( !float.IsNaN( carPos.fRRAngular ) )
-                            asRR = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fRRAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fRRAngular ),-100.0f,154.0f ) + 100.0f);
-
-                        //car.Status.Timestamp = (int)(bot.TimeStampStart + (bot.Frame - bot.FrameOffset) * _replay.ReplayFrequency);
-                        car.Status.Timestamp = _sessionManager.ServerTimeMilliseconds;
-
-                        car.Status.PakSequenceId = bot.PakSequenceId++;
-                        //car.Status.PakSequenceId = (byte)bot.Frame;
-                        car.Status.Position = new System.Numerics.Vector3( (float)carPos.xBody,(float)carPos.zBody,(float)carPos.yBody );
-                        car.Status.Rotation = new System.Numerics.Vector3( (float)carPos.aBodyX,(float)carPos.aBodyY,(float)carPos.aBodyZ );
-    
-                        if( bot.Frame > bot.FrameStart )
+                        if( bot.Loop )
                         {
-                            if( _configuration.RecalcVelocities && bot.Frame > 0 )
-                            {
-                                VCarPos prevPos = vsCar.GetCarPos( bot.Frame-1 );
-                                if( prevPos != null )
-                                {
-                                    float X = (float)(((carPos.xBody - prevPos.xBody) / _replay.ReplayFrequency) * 1000f);
-                                    float Y = (float)(((carPos.yBody - prevPos.yBody) / _replay.ReplayFrequency) * 1000f);
-                                    float Z = (float)(((carPos.zBody - prevPos.zBody) / _replay.ReplayFrequency) * 1000f);
+                            bot.Frame = bot.FrameOffset = bot.FrameStart;
+                            bot.TimeStampStart = _sessionManager.ServerTimeMilliseconds;
+                        }
+                        else
+                        {
+                            bot.Reset( );
+                        }
+                    }
+                    var car = _entryCarManager.EntryCars[bot.CarIndex];
+                    if( car != null && bot.Frame >= 0 )
+                    {
+                        VCarPos carPos = vsCar.GetCarPos( bot.Frame );
+                        if( carPos != null )
+                        {
+                            float fSteeringRatio = bot.SteeringRatio;
 
-                                    car.Status.Velocity = new System.Numerics.Vector3( X,Z,Y );
+                            int nSteerAngle = (int)((carPos.fSteeringWheel / 270.0F) * 254);
+                            if( nSteerAngle > 127 )
+                                nSteerAngle = 127;
+                            if( nSteerAngle < -127 )
+                                nSteerAngle = -127;
+
+                            byte asFL = 100,asFR = 100, asRL = 100, asRR = 100;
+                            if( !float.IsNaN( carPos.fFLAngular ) )
+                                asFL = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fFLAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fFLAngular ),-100.0f,154.0f ) + 100.0f);
+                            if( !float.IsNaN( carPos.fFRAngular ) )
+                                asFR = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fFRAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fFRAngular ),-100.0f,154.0f ) + 100.0f);
+                            if( !float.IsNaN( carPos.fRLAngular ) )
+                                asRL = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fRLAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fRLAngular ),-100.0f,154.0f ) + 100.0f);
+                            if( !float.IsNaN( carPos.fRRAngular ) )
+                                asRR = (byte)(Math.Clamp( MathF.Round( MathF.Log10( carPos.fRRAngular + 1.0f ) * 20.0f ) * Math.Sign( carPos.fRRAngular ),-100.0f,154.0f ) + 100.0f);
+
+                            //car.Status.Timestamp = (int)(bot.TimeStampStart + (bot.Frame - bot.FrameOffset) * _replay.ReplayFrequency);
+                            car.Status.Timestamp = _sessionManager.ServerTimeMilliseconds;
+
+                            bot.PakSequenceId++;
+                            //if( bot.PakSequenceId == 0 )
+                                //bot.PakSequenceId = 1;
+
+                            car.Status.PakSequenceId = bot.PakSequenceId;
+                            //car.Status.PakSequenceId = (byte)bot.Frame;
+                            car.Status.Position = new System.Numerics.Vector3( (float)carPos.xBody,(float)carPos.zBody,(float)carPos.yBody );
+                            car.Status.Rotation = new System.Numerics.Vector3( (float)carPos.aBodyX,(float)carPos.aBodyY,(float)carPos.aBodyZ );
+
+                            if( bot.Frame > bot.FrameStart )
+                            {
+                                if( _configuration.RecalcVelocities && bot.Frame > 0 )
+                                {
+                                    VCarPos prevPos = vsCar.GetCarPos( bot.Frame-1 );
+                                    if( prevPos != null )
+                                    {
+                                        float X = (float)(((carPos.xBody - prevPos.xBody) / _replay.ReplayFrequency) * 1000f);
+                                        float Y = (float)(((carPos.yBody - prevPos.yBody) / _replay.ReplayFrequency) * 1000f);
+                                        float Z = (float)(((carPos.zBody - prevPos.zBody) / _replay.ReplayFrequency) * 1000f);
+
+                                        car.Status.Velocity = new System.Numerics.Vector3( X,Z,Y );
+                                    }
+                                }
+                                else
+                                {
+                                    car.Status.Velocity = new System.Numerics.Vector3( carPos.fXVelocity,carPos.fZVelocity,carPos.fYVelocity );
                                 }
                             }
                             else
                             {
-                                car.Status.Velocity = new System.Numerics.Vector3( carPos.fXVelocity,carPos.fZVelocity,carPos.fYVelocity );
+                                car.Status.Velocity = new System.Numerics.Vector3( 0,0,0 );
                             }
-                        }
-                        else
-                        {
-                            car.Status.Velocity = new System.Numerics.Vector3( 0,0,0 );
-                        }
-                        car.Status.TyreAngularSpeed[0] = asFL;
-                        car.Status.TyreAngularSpeed[1] = asFR;
-                        car.Status.TyreAngularSpeed[2] = asRL;
-                        car.Status.TyreAngularSpeed[3] = asRR;
-                        car.Status.SteerAngle = (byte)nSteerAngle;
-                        car.Status.WheelAngle = (byte)(127 + (((carPos.fSteeringWheel / 360.0F) * 254) / (fSteeringRatio / 4)));
-                        car.Status.EngineRpm = (ushort)carPos.fRPM;
-                        car.Status.Gear = (byte)carPos.nGear;
-                        car.Status.StatusFlag = (CarStatusFlags)0;
-                        car.Status.PerformanceDelta = 0;
-                        car.Status.Gas = (byte)carPos.nGasPedal;
-                        car.Status.NormalizedPosition = 0;
+                            car.Status.TyreAngularSpeed[0] = asFL;
+                            car.Status.TyreAngularSpeed[1] = asFR;
+                            car.Status.TyreAngularSpeed[2] = asRL;
+                            car.Status.TyreAngularSpeed[3] = asRR;
+                            car.Status.SteerAngle = (byte)(127 + nSteerAngle);
+                            car.Status.WheelAngle = (byte)(127 + (((carPos.fSteeringWheel / 360.0F) * 254) / (fSteeringRatio / 4)));
+                            car.Status.EngineRpm = (ushort)carPos.fRPM;
+                            car.Status.Gear = (byte)carPos.nGear;
+                            car.Status.StatusFlag = (CarStatusFlags)0;
+                            car.Status.PerformanceDelta = 0;
+                            car.Status.Gas = (byte)carPos.nGasPedal;
+                            car.Status.NormalizedPosition = 0;
 
-                        car.HasUpdateToSend = true;
+                            car.HasUpdateToSend = true;
+                        }
+                    }
+                }
+                else if( bot.ResetCount > 0 )
+                {
+                    bot.ResetCount--;
+
+                    EntryCar car = _entryCarManager.EntryCars[bot.CarIndex];
+                    if( car != null )
+                    {
+                        VCarPos carPos = bot.Car.GetCarPos( bot.FrameStart );
+                        if( carPos != null )
+                        {
+                            car.Status.Timestamp = _sessionManager.ServerTimeMilliseconds;
+                            car.Status.PakSequenceId = bot.PakSequenceId++;
+
+                            car.Status.Position = new System.Numerics.Vector3( (float)carPos.xBody,(float)carPos.zBody,(float)carPos.yBody );
+                            car.Status.Rotation = new System.Numerics.Vector3( (float)carPos.aBodyX,(float)carPos.aBodyY,(float)carPos.aBodyZ );
+                            car.Status.Velocity = new System.Numerics.Vector3( 0,0,0 );
+                            car.Status.TyreAngularSpeed[0] = 100;
+                            car.Status.TyreAngularSpeed[1] = 100;
+                            car.Status.TyreAngularSpeed[2] = 100;
+                            car.Status.TyreAngularSpeed[3] = 100;
+                            car.Status.SteerAngle = 127;
+                            car.Status.WheelAngle = 127;
+                            car.Status.EngineRpm = 800;
+                            car.Status.Gear = 1;
+                            car.Status.StatusFlag = 0;
+                            car.Status.PerformanceDelta = 0;
+                            car.Status.Gas = (byte)0;
+                            car.Status.NormalizedPosition = 0;
+
+                            car.HasUpdateToSend = true;
+                        }
                     }
                 }
             }
@@ -625,8 +674,9 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
             VSBot? bot = _bots.FirstOrDefault( x => x.Client == client );
             if( bot != null )
             {
-                if( bot.Frame <= bot.FrameStart && sender.IsInRange( _entryCarManager.EntryCars[bot.CarIndex],6 ) )
+                if( bot.IsWaiting && sender.IsInRange( _entryCarManager.EntryCars[bot.CarIndex],6.5f ) )
                 {
+                    bot.IsWaiting = false;
                     bot.TimeStampStart = -1;
                     bot.Frame = bot.FrameOffset = bot.FrameStart+1;
 
