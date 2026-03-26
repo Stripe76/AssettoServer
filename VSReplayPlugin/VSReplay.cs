@@ -137,7 +137,6 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                         bot.Frame = bot.LoopStart + loopOffset;
                     }
                     serverCar.AllowedGuids.Add( 87470088877857164 );
-                    serverCar.PositionUpdateReceived += Car_PositionUpdateReceived;
                     
                     _bots.Add( bot );
                 }
