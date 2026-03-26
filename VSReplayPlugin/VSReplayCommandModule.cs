@@ -7,9 +7,9 @@ namespace VirtualSteward;
 
 public class VSReplayCommandModule : ACModuleBase
 {
-    private readonly VSReplayPlugin _vsPlugin;
+    private readonly VSReplayPlugin.VSReplayPlugin _vsPlugin;
 
-    public VSReplayCommandModule( VSReplayPlugin vsPlugin )
+    public VSReplayCommandModule( VSReplayPlugin.VSReplayPlugin vsPlugin )
     {
         _vsPlugin = vsPlugin;
     }
@@ -33,11 +33,5 @@ public class VSReplayCommandModule : ACModuleBase
     public void EndSafetyCar( )
     {
         _vsPlugin.ClientEndBot( (ChatCommandContext)Context );
-    }
-
-    [Command( "t","target" ), RequireConnectedPlayer]
-    public void CreateTargets( )
-    {
-        _vsPlugin.ClientCreateTargets( (ChatCommandContext)Context );
     }
 }

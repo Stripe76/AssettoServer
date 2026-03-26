@@ -8,6 +8,6 @@ public class VSReplayModule : AssettoServerModule<VSReplayConfiguration>
 {
     protected override void Load( ContainerBuilder builder )
     {
-        builder.RegisterType<VSReplayPlugin>( ).AsSelf( ).As<IAssettoServerAutostart>( ).SingleInstance( );
+        builder.RegisterType<VSReplayPlugin.VSReplayPlugin>( ).AsSelf( ).As<IAssettoServerAutostart>( ).SingleInstance( );
     }
 }
