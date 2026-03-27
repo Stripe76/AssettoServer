@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using JetBrains.Annotations;
 
-namespace VirtualSteward;
+namespace VSReplayPlugin;
 
 // Use FluentValidation to validate plugin configuration
 [UsedImplicitly]

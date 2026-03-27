@@ -2,7 +2,7 @@
 using JetBrains.Annotations;
 using YamlDotNet.Serialization;
 
-namespace VirtualSteward;
+namespace VSReplayPlugin;
 
 [UsedImplicitly(ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public class VSReplayConfiguration : IValidateConfiguration<VSReplayConfigurationValidator>

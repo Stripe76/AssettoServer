@@ -1,8 +1,8 @@
-﻿using AssettoServer.Server.Configuration;
+﻿using Autofac;
 using AssettoServer.Server.Plugin;
-using Autofac;
+using Microsoft.Extensions.Hosting;
 
-namespace VirtualSteward;
+namespace VirtualStewardPlugin;
 
 public class VirtualStewardModule : AssettoServerModule<VirtualStewardConfiguration>
 {
@@ -17,6 +17,6 @@ public class VirtualStewardModule : AssettoServerModule<VirtualStewardConfigurat
 
     protected override void Load( ContainerBuilder builder )
     {
-        builder.RegisterType<VirtualStewardPlugin>( ).AsSelf( ).As<IAssettoServerAutostart>( ).SingleInstance( );
+        builder.RegisterType<VirtualStewardPlugin>( ).AsSelf( ).As<IHostedService>( ).SingleInstance( );
     }
 }

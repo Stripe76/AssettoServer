@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using JetBrains.Annotations;
 
-namespace VirtualSteward;
+namespace VirtualStewardPlugin;
 
 // Use FluentValidation to validate plugin configuration
 [UsedImplicitly]

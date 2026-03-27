@@ -3,7 +3,7 @@ using AssettoServer.Commands.Attributes;
 using AssettoServer.Commands.Contexts;
 using Qmmands;
 
-namespace VirtualSteward;
+namespace VirtualStewardPlugin;
 
 public class VirtualStewardCommandModule : ACModuleBase
 {

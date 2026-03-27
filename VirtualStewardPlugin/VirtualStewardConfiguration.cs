@@ -2,7 +2,7 @@
 using JetBrains.Annotations;
 using YamlDotNet.Serialization;
 
-namespace VirtualSteward;
+namespace VirtualStewardPlugin;
 
 [UsedImplicitly(ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public class VirtualStewardConfiguration : IValidateConfiguration<VirtualStewardConfigurationValidator>

@@ -1,24 +1,27 @@
 ﻿using AssettoServer.Server.Configuration;
-using AssettoServer.Server.Plugin;
 using AssettoServer.Shared.Network.Packets.Shared;
-using AssettoServer.Shared.Services;
 using Microsoft.Extensions.Hosting;
 using AssettoServer.Server;
 using AssettoServer.Network.Tcp;
 using AssettoServer.Shared.Model;
 using System.Text;
-using System.ServiceModel.Channels;
 
-namespace VirtualSteward;
 
-public class VirtualStewardPlugin : CriticalBackgroundService, IAssettoServerAutostart
+namespace VirtualStewardPlugin;
+
+public class VirtualStewardPlugin : BackgroundService
 {
     private readonly VirtualStewardConfiguration _configuration;
     private readonly ACServerConfiguration _serverConfiguration;
     private readonly SessionManager _sessionManager;
     private readonly EntryCarManager _entryCarManager;
 
-    public VirtualStewardPlugin( SessionManager sessionManager,VirtualStewardConfiguration configuration,ACServerConfiguration serverConfiguration,EntryCarManager entryCarManager,IHostApplicationLifetime applicationLifetime ) : base( applicationLifetime )
+    public VirtualStewardPlugin(
+        SessionManager sessionManager,
+        VirtualStewardConfiguration configuration,
+        ACServerConfiguration serverConfiguration,
+        EntryCarManager entryCarManager,
+        IHostApplicationLifetime applicationLifetime )
     {
         _sessionManager = sessionManager;
         _configuration = configuration;

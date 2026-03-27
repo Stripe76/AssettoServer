@@ -1,13 +1,13 @@
-﻿using AssettoServer.Server.Configuration;
-using AssettoServer.Server.Plugin;
+﻿using AssettoServer.Server.Plugin;
 using Autofac;
+using Microsoft.Extensions.Hosting;
 
-namespace VirtualSteward;
+namespace VSReplayPlugin;
 
 public class VSReplayModule : AssettoServerModule<VSReplayConfiguration>
 {
     protected override void Load( ContainerBuilder builder )
     {
-        builder.RegisterType<VSReplayPlugin.VSReplayPlugin>( ).AsSelf( ).As<IAssettoServerAutostart>( ).SingleInstance( );
+        builder.RegisterType<VSReplayPlugin>( ).AsSelf( ).As<IHostedService>( ).SingleInstance( );
     }
 }

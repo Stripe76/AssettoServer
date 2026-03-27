@@ -4,20 +4,18 @@ using AssettoServer.Commands.Contexts;
 using AssettoServer.Network.Tcp;
 using AssettoServer.Server;
 using AssettoServer.Server.Configuration;
-using AssettoServer.Server.Plugin;
 using AssettoServer.Shared.Model;
 using AssettoServer.Shared.Network.Packets.Outgoing;
 using AssettoServer.Shared.Network.Packets.Shared;
-using AssettoServer.Shared.Services;
+
 using Framework.IniFiles;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using VirtualSteward;
 using VirtualSteward.Bots;
 
 namespace VSReplayPlugin;
 
-public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
+public class VSReplayPlugin : BackgroundService
 {
     private const ulong GUID = 87470088877857164;
     
@@ -33,8 +31,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
         SessionManager sessionManager,
         VSReplayConfiguration configuration,
         ACServerConfiguration serverConfiguration,
-        EntryCarManager entryCarManager,
-        IHostApplicationLifetime applicationLifetime ) : base( applicationLifetime )
+        EntryCarManager entryCarManager )
     {
         _sessionManager = sessionManager;
         _configuration = configuration;
