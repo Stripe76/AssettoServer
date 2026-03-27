@@ -9,6 +9,9 @@ public class VSBot
     public bool IsWaiting = false;
     public bool RecalcVelocities = false;
 
+    public string? ShownName = null;
+    public string? ShownNation = null;
+
     public float ReplayFrequency = 0.33f;
 
     public int SessionId = -1;

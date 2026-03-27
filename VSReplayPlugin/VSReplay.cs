@@ -2,10 +2,10 @@
 using ACLibrary.Replays;
 using AssettoServer.Commands.Contexts;
 using AssettoServer.Network.Tcp;
-using AssettoServer.Network.Udp;
 using AssettoServer.Server;
 using AssettoServer.Server.Configuration;
 using AssettoServer.Server.Plugin;
+using AssettoServer.Shared.Model;
 using AssettoServer.Shared.Network.Packets.Outgoing;
 using AssettoServer.Shared.Network.Packets.Shared;
 using AssettoServer.Shared.Services;
@@ -19,6 +19,8 @@ namespace VSReplayPlugin;
 
 public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
 {
+    private const ulong GUID = 87470088877857164;
+    
     private readonly VSReplayConfiguration _configuration;
     private readonly ACServerConfiguration _serverConfiguration;
     private readonly SessionManager _sessionManager;
@@ -27,7 +29,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
     private readonly VSBotList _bots = [];
     private readonly SortedList<string,Replay> _replays = [];
 
-    public VSReplayPlugin( ACUdpServer udpServer,
+    public VSReplayPlugin(
         SessionManager sessionManager,
         VSReplayConfiguration configuration,
         ACServerConfiguration serverConfiguration,
@@ -39,6 +41,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
         _serverConfiguration = serverConfiguration;
         _entryCarManager = entryCarManager;
 
+        _entryCarManager.ClientConnected += EntryCarManager_ClientConnected;
         _entryCarManager.ClientDisconnected += EntryCarManager_ClientDisconnected;
     }
 
@@ -101,6 +104,8 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                     VSBot bot = new( )
                     {
                         SessionId = serverCar.SessionId,
+                        ShownName = botsSettings.GetValue( "ShownName",section,null ),
+                        ShownNation = botsSettings.GetValue( "ShownNation",section,null ),
                         Car = replayCar,
                         CarIndex = i,
                         FrameStart = botsSettings.GetIntValue( "StartFrame",section,_configuration.StartFrame ),
@@ -138,7 +143,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                             autoStartCount++;
                         bot.Frame = bot.LoopStart + loopOffset;
                     }
-                    serverCar.AllowedGuids.Add( 87470088877857164 );
+                    serverCar.AllowedGuids.Add( GUID );
                     
                     _bots.Add( bot );
                 }
@@ -156,7 +161,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
         }
         foreach( var serverCar in _entryCarManager.EntryCars )
         {
-            if( !serverCar.AllowedGuids.Contains( 87470088877857164 ) )
+            if( !serverCar.AllowedGuids.Contains( GUID ) )
             {
                 serverCar.PositionUpdateReceived += Car_PositionUpdateReceived;
             }
@@ -475,6 +480,27 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                     bot.Frame = bot.FrameOffset = bot.FrameStart+1;
 
                     SendMessage( client,"Bot is on the move" );
+                }
+            }
+        }
+    }
+    private void EntryCarManager_ClientConnected( ACTcpClient sender,EventArgs args )
+    {
+        sender.CarListResponseSending += TcpClient_CarListResponseSending;
+    }
+    private void TcpClient_CarListResponseSending( ACTcpClient sender,CarListResponseSendingEventArgs args )
+    {
+        foreach( var entryCar in args.Packet.EntryCars )
+        {
+            foreach( var bot in _bots )
+            {
+                if( bot.SessionId == entryCar.SessionId && bot.ShownName != null )
+                {
+                    EntryCarResult result = args.Packet.CarResults[entryCar.SessionId];
+
+                    result.Guid = GUID; 
+                    result.Name = bot.ShownName;
+                    result.NationCode = bot?.ShownNation ?? "ITA";
                 }
             }
         }
