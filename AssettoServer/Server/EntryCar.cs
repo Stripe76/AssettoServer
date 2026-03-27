@@ -321,6 +321,7 @@ public partial class EntryCar : IEntryCar<ACTcpClient>
                 status = Status;
             }
         }
+
         float distanceSquared = Vector3.DistanceSquared(status.Position, targetCarStatus.Position);
         if (TargetCar != null || distanceSquared > NetworkDistanceSquared)
         {

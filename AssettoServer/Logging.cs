@@ -49,13 +49,17 @@ internal static class Logging
                 LogEventLevel.Warning)
             .MinimumLevel.Override("AspNetCore.Authentication.ApiKey.ApiKeyInHeaderHandler", LogEventLevel.Information)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("Grpc", LogEventLevel.Warning);
+            .MinimumLevel.Override("Grpc", LogEventLevel.Warning)
+            // We do our own logging for these exceptions. The default Microsoft log statements are a bit too confusing for users
+            .Filter.ByExcluding("EventId.Name = 'HostedServiceStartupFaulted' or EventId.Name = 'BackgroundServiceFaulted' or EventId.Name = 'BackgroundServiceStoppingHost'");
 
         if (redactIpAddresses)
         {
             loggerConfiguration.Enrich.WithSensitiveDataMasking(o =>
             {
                 o.ExcludeProperties.Add("ServerInviteLink");
+                o.ExcludeProperties.Add("RouterPage");
+                o.ExcludeProperties.Add("LocalIp");
                 o.MaskingOperators = [new IpAddressMaskingOperator()];
             });
         }

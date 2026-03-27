@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using AssettoServer.Server.Configuration.Extra;
@@ -53,13 +54,13 @@ public partial class ACServerConfiguration
      *
      * When "entryListPath" is set, it takes precedence and entry_list.ini will be loaded from the specified path.
      */
-    public ACServerConfiguration(string? preset, ConfigurationLocations locations, bool loadPluginsFromWorkdir, bool generatePluginConfigs)
+    public ACServerConfiguration(string? preset, ConfigurationLocations locations, bool loadPluginsFromWorkdir, bool generatePluginConfigs, PortOverrides? portOverrides)
     {
         Preset = preset;
         BaseFolder = locations.BaseFolder;
         LoadPluginsFromWorkdir = loadPluginsFromWorkdir;
         GeneratePluginConfigs = generatePluginConfigs;
-        Server = LoadServerConfiguration(locations.ServerCfgPath);
+        Server = LoadServerConfiguration(locations.ServerCfgPath, portOverrides);
         EntryList = LoadEntryList(locations.EntryListPath);
         Setups = LoadSetups();
         WelcomeMessage = LoadWelcomeMessage();
@@ -107,7 +108,7 @@ public partial class ACServerConfiguration
         validator.ValidateAndThrow(this);
     }
 
-    private ServerConfiguration LoadServerConfiguration(string path)
+    private ServerConfiguration LoadServerConfiguration(string path, PortOverrides? portOverrides)
     {
         Log.Debug("Loading server_cfg.ini from {Path}", path);
         try
@@ -121,7 +122,16 @@ public partial class ACServerConfiguration
                 serverCfg.CopyTo(outFile);
             }
 
-            return ServerConfiguration.FromFile(path);
+            var config = ServerConfiguration.FromFile(path);
+
+            if (portOverrides != null)
+            {
+                config.TcpPort = portOverrides.TcpPort;
+                config.UdpPort = portOverrides.UdpPort;
+                config.HttpPort = portOverrides.HttpPort;
+            }
+            
+            return config;
         }
         catch (Exception ex)
         {
@@ -325,7 +335,9 @@ public partial class ACServerConfiguration
                 }
                 else
                 {
-                    var serializer = new SerializerBuilder().Build();
+                    var serializer = new SerializerBuilder()
+                        .WithEventEmitter(next => new YamlFlowStyleEmitter<Vector3>(next))
+                        .Build();
                     using var file = File.CreateText(configPath);
                     ConfigurationSchemaGenerator.WriteModeLine(file, BaseFolder, schemaPath);
                     var configObj = Activator.CreateInstance(plugin.ConfigurationType)!;

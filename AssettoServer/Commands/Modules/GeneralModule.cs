@@ -8,7 +8,6 @@ using AssettoServer.Server.Configuration;
 using AssettoServer.Server.Weather;
 using AssettoServer.Utils;
 using JetBrains.Annotations;
-using Serilog;
 
 namespace AssettoServer.Commands.Modules;
 
@@ -71,7 +70,7 @@ public class GeneralModule : ACModuleBase
     [Command("resetcar"), RequireConnectedPlayer]
     public void ResetCarAsync()
     {
-        if (_configuration.Extra is { EnableClientMessages: true, EnableCarReset: true, MinimumCSPVersion: >= CSPVersion.V0_2_3_p47, EnableAi: true })
+        if (_configuration.Extra is { EnableClientMessages: true, EnableCarReset: true, MinimumCSPVersion: >= CSPVersion.V0_2_8, EnableAi: true })
         {
             Reply(Client!.EntryCar.TryResetPosition() 
                 ? "Position successfully reset" 

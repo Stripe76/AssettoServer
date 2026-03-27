@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Numerics;
 using System.Reflection;
 using System.Text;
-using AssettoServer.Server;
 using AssettoServer.Shared.Network.Packets;
 using AssettoServer.Shared.Network.Packets.Shared;
 using AssettoServer.Shared.Utils;
@@ -23,7 +23,7 @@ internal static class OnlineEventGenerator
         { typeof(sbyte), "char" },
         { typeof(ushort), "uint16_t" },
         { typeof(short), "int16_t" },
-        { typeof(uint), "uint" },
+        { typeof(uint), "uint32_t" },
         { typeof(int), "int" },
         { typeof(ulong), "uint64_t" },
         { typeof(long), "int64_t" },
@@ -32,7 +32,7 @@ internal static class OnlineEventGenerator
         { typeof(Vector2), "vec2" },
         { typeof(Vector3), "vec3" },
         { typeof(Vector4), "vec4" },
-        // TODO support for rgb
+        { typeof(Color), "rgbm" },
     };
 
     private static uint GenerateKey(string definition)
@@ -48,7 +48,7 @@ internal static class OnlineEventGenerator
             }
         }
 
-        var hash = CSPXxHash3.Hash64(stream.ToArray());
+        var hash = CSPXxHash3.Hash64(stream.GetSpan());
         return (uint)hash ^ (uint)(hash >> 32);
     }
 
@@ -96,8 +96,8 @@ internal static class OnlineEventGenerator
 
     internal static OnlineEventInfo ParseClientMessage(Type messageType)
     {
-        var mainAttr = messageType.GetCustomAttribute<OnlineEventAttribute>();
-        var key = mainAttr?.Key;
+        var mainAttr = messageType.GetCustomAttribute<OnlineEventAttribute>() ?? new OnlineEventAttribute();
+        var key = mainAttr.Key;
 
         var ordered = new List<OnlineEventFieldInfo?>();
         
@@ -134,8 +134,14 @@ internal static class OnlineEventGenerator
             {
                 throw new InvalidOperationException($"Unsupported type {type.Name} for client message field {messageType.Name}.{field.Name}");
             }
-            
-            var size = field.FieldType == typeof(string) ? -attr.Size : MarshalUtils.SizeOf(type);
+
+            int size;
+            if (field.FieldType == typeof(string))
+                size = -attr.Size;
+            else if (field.FieldType == typeof(Color))
+                size = 16;
+            else
+                size = MarshalUtils.SizeOf(type);
 
             ordered.Add(new OnlineEventFieldInfo
             {
@@ -158,6 +164,7 @@ internal static class OnlineEventGenerator
         var ret = new OnlineEventInfo
         {
             Key = key,
+            Udp = mainAttr.Udp,
             Fields = reordered,
             Structure = structure,
             PacketType = GenerateKey(structure)
@@ -210,6 +217,10 @@ internal static class OnlineEventGenerator
                     emitter.Call(opImplicit);
                 }
             }
+            else if (field.Type == typeof(Color))
+            {
+                emitter.Call(typeof(PacketReader).GetMethod(nameof(PacketReader.ReadRgbmAsColor))!);
+            }
             else if (field.Type.IsValueType)
             {
                 emitter.Call(readMethod.MakeGenericMethod(field.Type));
@@ -238,7 +249,7 @@ internal static class OnlineEventGenerator
         emitter.Call(writeByteMethod);
 
         emitter.LoadArgument(1);
-        emitter.LoadConstant((int)CSPMessageTypeTcp.ClientMessage);
+        emitter.LoadConstant(message.Udp ? (int)CSPMessageTypeUdp.ClientMessage : (int)CSPMessageTypeTcp.ClientMessage);
         emitter.Call(writeByteMethod);
         
         emitter.LoadArgument(1);
@@ -310,6 +321,11 @@ internal static class OnlineEventGenerator
                 emitter.LoadConstant(field.Array.Value);
                 emitter.LoadConstant(i < message.Fields.Count - 1); // padding
                 emitter.Call(typeof(PacketWriter).GetMethod(nameof(PacketWriter.WriteArrayFixed))!.MakeGenericMethod(elementType));
+            }
+            else if (field.Type == typeof(Color))
+            {
+                emitter.LoadField(field.Field);
+                emitter.Call(typeof(PacketWriter).GetMethod(nameof(PacketWriter.WriteColorAsRgbm))!);
             }
             else if (field.Type.IsValueType)
             {

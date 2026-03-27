@@ -24,9 +24,10 @@ public class CSPClientMessageHandler
         _entryCarManager = entryCarManager;
         _configuration = configuration;
         
-        cspClientMessageTypeManager.RegisterOnlineEvent<CollisionUpdatePacket>(OnCollisionUpdate);
-        cspClientMessageTypeManager.RegisterOnlineEvent<TeleportCarPacket>(OnTeleportCar);
-        cspClientMessageTypeManager.RegisterOnlineEvent<RequestResetPacket>((client, _) => { OnResetCar(client); });
+        cspClientMessageTypeManager.RegisterOnlineEvent<CollisionUpdatePacket>((_, _) => { });
+        cspClientMessageTypeManager.RegisterOnlineEvent<TeleportCarPacket>((_, _) => { });
+        cspClientMessageTypeManager.RegisterOnlineEvent<RequestResetPacket>(OnResetCar);
+        cspClientMessageTypeManager.RegisterOnlineEvent<LuaReadyPacket>(OnLuaReady);
     }
     
     public void OnCSPClientMessageUdp(ACTcpClient sender, PacketReader reader)
@@ -57,7 +58,7 @@ public class CSPClientMessageHandler
 
                     if (_configuration.Extra.DebugClientMessages)
                     {
-                        Log.Verbose("UDP client message received from {ClientName} ({SessionId}), type {Type}, data {Data}",
+                        sender.Logger.Verbose("UDP client message received from {ClientName} ({SessionId}), type {Type}, data {Data}",
                             sender.Name, sender.SessionId, packetType, clientMessage.Data);
                     }
 
@@ -200,24 +201,15 @@ public class CSPClientMessageHandler
         }
     }
 
-    private void OnResetCar(ACTcpClient sender)
+    private void OnResetCar(ACTcpClient sender, RequestResetPacket packet)
     {
-        if (_configuration.Extra.EnableCarReset)
-            sender.EntryCar.TryResetPosition();
+        if (!_configuration.Extra.EnableCarReset) return;
+        sender.EntryCar.TryResetPosition();
     }
 
-    private void OnTeleportCar(ACTcpClient sender, TeleportCarPacket packet)
+    private void OnLuaReady(ACTcpClient sender, LuaReadyPacket packet)
     {
-        if (!sender.IsAdministrator) return;
-        
-        _entryCarManager.EntryCars[packet.Target].Client?.SendPacket(packet);
-    }
-
-    private void OnCollisionUpdate(ACTcpClient sender, CollisionUpdatePacket packet)
-    {
-        if (!sender.IsAdministrator) return;
-        
-        _entryCarManager.EntryCars[packet.Target].Client?.SendPacket(packet);
+        sender.FireLuaReady();
     }
 
     private static bool IsRanged(CSPClientMessageType type)
