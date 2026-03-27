@@ -7,6 +7,9 @@ public class VSBot
 {
     public bool IsActive = false;
     public bool IsWaiting = false;
+    public bool RecalcVelocities = false;
+
+    public float ReplayFrequency = 0.33f;
 
     public int SessionId = -1;
     public int CarIndex = -1;

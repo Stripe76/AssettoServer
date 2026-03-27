@@ -68,7 +68,7 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                 }
                 catch( Exception ex )
                 {
-                    Log.Error( "{plugin}: Error in VS update","VS Plugin" );
+                    Log.Error( "{plugin}: Error in VS update: {message}","VS Plugin",ex.Message );
                 }
             }
         }
@@ -104,6 +104,8 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                         Car = replayCar,
                         CarIndex = i,
                         FrameStart = botsSettings.GetIntValue( "StartFrame",section,_configuration.StartFrame ),
+                        ReplayFrequency = (float)replay.ReplayFrequency,
+                        RecalcVelocities = botsSettings.GetBoolValue( "RecalcVelocities",section,_configuration.RecalcVelocities ), 
                     };
                     PlayerLap? lap = null;
                     PlayerLapList playerLaps = CreateLapsList( replayCar );
@@ -262,8 +264,10 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
                         byte asRL = GetAngularSpeed( carPos.WheelAngularSpeedRL );
                         byte asRR = GetAngularSpeed( carPos.WheelAngularSpeedRR );
 
-                        //car.Status.Timestamp = (int)(bot.TimeStampStart + (bot.Frame - bot.FrameOffset) * _replay.ReplayFrequency);
-                        serverCar.Status.Timestamp = _sessionManager.ServerTimeMilliseconds;
+                        if( _configuration.ReplayTimestamp )
+                            serverCar.Status.Timestamp = (int)(bot.TimeStampStart + (bot.Frame - bot.FrameOffset) * bot.ReplayFrequency);
+                        else
+                            serverCar.Status.Timestamp = _sessionManager.ServerTimeMilliseconds;
 
                         bot.PakSequenceId++;
 
@@ -278,20 +282,15 @@ public class VSReplayPlugin : CriticalBackgroundService, IAssettoServerAutostart
 
                         if( bot.Frame > bot.FrameStart )
                         {
-                            if( _configuration.RecalcVelocities && bot.Frame > 0 )
+                            if( bot is { RecalcVelocities: true,Frame: > 0 } )
                             {
-                                // TODO
-                                /*
-                                VCarPos prevPos = vsCar.GetCarPos( bot.Frame-1 );
-                                if( prevPos != null )
-                                {
-                                    float X = (float)(((carPos.xBody - prevPos.xBody) / _replay.ReplayFrequency) * 1000f);
-                                    float Y = (float)(((carPos.yBody - prevPos.yBody) / _replay.ReplayFrequency) * 1000f);
-                                    float Z = (float)(((carPos.zBody - prevPos.zBody) / _replay.ReplayFrequency) * 1000f);
+                                ACCarFrame prevPos = replayCar.Data[bot.Frame].Frame;
 
-                                    car.Status.Velocity = new System.Numerics.Vector3( X,Z,Y );
-                                }
-                                */
+                                float X = (float)(((carPos.BodyTranslation.X - prevPos.BodyTranslation.X) / bot.ReplayFrequency) * 1000f);
+                                float Y = (float)(((carPos.BodyTranslation.Y - prevPos.BodyTranslation.Y) / bot.ReplayFrequency) * 1000f);
+                                float Z = (float)(((carPos.BodyTranslation.Z - prevPos.BodyTranslation.Z) / bot.ReplayFrequency) * 1000f);
+
+                                serverCar.Status.Velocity = new System.Numerics.Vector3( X,Y,Z );
                             }
                             else
                             {
